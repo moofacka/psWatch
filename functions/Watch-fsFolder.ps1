@@ -91,7 +91,7 @@ function Watch-FSFolder
         }
         else
         {
-            Start-Log -Log (Join-Path -Path $Destination -ChildPath $LogFile)
+            Start-FSLog -Log (Join-Path -Path $Destination -ChildPath $LogFile)
         }
         Write-FSLog -Message "The log file was created at '$ScriptLogFilePath'" -Severity Information 
         Write-FSLog -Message "Started monitoring of folder '$Folder'" -Severity Information
@@ -195,5 +195,3 @@ function Watch-FSFolder
     $fsw.Dispose()
     }
 }
-
-Watch-FSFolder

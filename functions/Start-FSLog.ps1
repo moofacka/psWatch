@@ -26,7 +26,7 @@ function Start-FSLog
 	    New-Item $Log -Type File | Out-Null
 	}
 		
-	## Set the global variable to be used as the FilePath for all subsequent Write-Log
+	## Set the global variable to be used as the FilePath for all subsequent Write-FSLog
 	## calls in this session
 	$global:ScriptLogFilePath = $Log
 
