@@ -10,7 +10,7 @@
 .NOTES
    Written by Adam Bertram
    https://www.adamtheautomator.com/building-logs-for-cmtrace-powershell/
-#>
+
 function Write-Log
 {
     [CmdletBinding()]
@@ -28,4 +28,32 @@ function Write-Log
     $Line = $Line -f $LineFormat
     Add-Content -Value $Line -Path $ScriptLogFilePath
 }
+#>
+function Write-Log {
+     [CmdletBinding()]
+     param(
+         [Parameter()]
+         [ValidateNotNullOrEmpty()]
+         [string]$Message,
+ 
+         [Parameter()]
+         [ValidateNotNullOrEmpty()]
+         [ValidateSet('Information','Warning','Error')]
+         [string]$Severity = 'Information'
+     )
+ 
+     $obj = [pscustomobject]@{
+         Time = (Get-Date -Format s)
+         Severity = $Severity
+         Operation = ($Event.ChangeType)
+         Source = $SourceFullPath
+         Destination = $DestinationFullPath
+         Message = $Message
+         
+     }
+     $Obj | Format-Table
 
+     $Obj | Export-Csv -Path $ScriptLogFilePath -Append -NoTypeInformation
+ }
+
+# Export-Csv -Path "C:\watch\LogFile.csv" -Append -NoTypeInformation | 
