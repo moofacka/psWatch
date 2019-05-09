@@ -1,49 +1,62 @@
 <#
-.Synopsis
+.SYNOPSIS
     Continuously monitors a directory tree and write to the output the path of the file that has changed.
-.Description 
+.DESCRIPTION
     This powershell cmdlet continuously monitors a directory tree and write to the output the path of the file that has changed.
-	This allows you to create an script that for instance, run a suite of unit tests when an specific file has changed using powershell pipelining.
-	
-.Parameter $location
-    The directory to watch. Optional, default to current directory.
+	Can run to copy changes to a new location. All events will also be logged.
+
+.Parameter $Folder
+    The Folder that you want to monitor. Default is the current working directory.
+.Parameter $Filter
+    What filter to be used for the monitoring. Default is wildcard for everything. Could be specified in string like "important.txt".
+.Parameter $Destination
+    Destination folder for the captured changes. Default is not configured.
+.Parameter $LogFile
+    Log file name for all the output.
 .Parameter $includeSubdirectories
+    Recursively searches subfolders as well. Turned off by default.
 .Parameter $includeChanged
+    Includes change events. Default setting.
 .Parameter $includeRenamed
+    Includes rename events. Default setting.
 .Parameter $includeCreated
+    Includes create events. Default setting.
 .Parameter $includeDeleted
+    Includes delete events. Turned off by default.
 
 .Link
+    Original Project
     https://github.com/jfromaniello/pswatch/
-.Example
-    Import-Module pswatch
+    This fork
+    https://github.com/moofacka/psWatch
 
-	watch "Myfolder\Other" | %{
-		Write-Host "$_.Path has changed!"
-		RunUnitTests.exe $_.Path
-	}
+.EXAMPLE
+    Import-Module psWatch
 
-    Description
-    -----------
-    A simple example.
-	
-.Example
-	watch | Get-Item | Where-Object { $_.Extension -eq ".js" } | %{
-		do the magic...
-	}
+.EXAMPLE
+    Watch-FSFolder -Folder C:\Watch -Filter "*.txt" -includeSubdirectories
+    Monitors C:\Watch and all it's subfolders for events to
 
-	Description
-	-----------
-	You can filter by using powershell pipelining.
-	
+.EXAMPLE
+    Watch-FSFolder -includeDeleted
+    Monitors all events in the current directory and logs to the same directory.
+
+.EXAMPLE
+    Watch-FSFolder -Folder C:\Watch -Filter "*.txt" -Destination C:\Destination -LogFile psWatch.log
+    Monitors C:\Watch for events to *.txt files and copies changed files to C:\Destination and logs all to psWatch.log in C:\Destination.
+.NOTES
+    Version:        2.0
+    Author:         Mats Tegbjer
+    Creation Date:  2019-05-08
+        
 #>
-function Watch-fsFolder
+function Watch-FSFolder
 {
     [CmdletBinding()]
-    [Alias("Monitor-fsFolder")]
+    [Alias("Monitor-FSFolder")]
     Param
     (
-        [Parameter(Mandatory=$false,
+    [Parameter(Mandatory=$false,
                    Position=0)]
         [ValidateScript({  Test-Path -Path $_ -PathType Container  })]
         [string]$Folder = (Get-Location),
@@ -59,22 +72,12 @@ function Watch-fsFolder
 
         [Parameter(Mandatory=$false,
                    Position=3)]
-        [switch]$IncludeSubdirectories = $false,
-
-        [Parameter(Mandatory=$false,
-                   Position=4)]
         [string]$LogFile = "Watch-Folder.csv",
 
-        [Parameter(HelpMessage = 'Watch for changes')]
+        [switch]$IncludeSubdirectories = $false,
         [switch]$includeChanged = $true,
-
-        [Parameter(HelpMessage = 'Watch for renames')]
         [switch]$includeRenamed = $true,
-
-        [Parameter(HelpMessage = 'Watch for new files')]
         [switch]$includeCreated = $true,
-
-        [Parameter(HelpMessage = 'Watch for delete events')]
         [switch]$includeDeleted = $false
 
     )
@@ -83,16 +86,15 @@ function Watch-fsFolder
     {
         if(!$Destination)
         {
-            $LogFile = Join-Path -Path (Get-Location) -ChildPath $LogFile
-            Start-Log -Log $LogFile
+            $LogFile = Join-Path -Path $Folder -ChildPath $LogFile
+            Start-FSLog -Log $LogFile
         }
         else
         {
             Start-Log -Log (Join-Path -Path $Destination -ChildPath $LogFile)
         }
-        #Write-Host "The log file was created at: [$ScriptLogFilePath]"
-        #Write-Log -Message "The log file was created at: [$ScriptLogFilePath]" -LogLevel 1
-
+        Write-FSLog -Message "The log file was created at '$ScriptLogFilePath'" -Severity Information 
+        Write-FSLog -Message "Started monitoring of folder '$Folder'" -Severity Information
         $fsw = New-Object System.IO.FileSystemWatcher
 	    $fsw.Path = $Folder
         $fsw.Filter = $Filter
@@ -130,17 +132,20 @@ function Watch-fsFolder
 		    }
 		    $Timestamp = Get-Date -UFormat '+%Y-%m-%dT%H%M%SZ'
             $SourceName = $Event.Name
+            $SourceOldName = $Event.OldName
             $SourceFullPath = [System.IO.Path]::Combine($Folder, $SourceName)
-
-            switch ($Event.ChangeType)
+            [string]$ChangeType = $Event.ChangeType
+            $ChangeType = $ChangeType.ToLower()
+            
+            try
             {
-                'Changed'
+                switch ($Event.ChangeType)
                 {
-
-                    Try
+                    'Changed'
                     {
                         if(!$Destination)
                         {
+                            Write-FSLog -Message "'$SourceName' was $ChangeType."  -Severity Information 
                             break;
                         }
                         $DestinationName = $Timestamp + "-" + $SourceName
@@ -151,36 +156,44 @@ function Watch-fsFolder
                         }
                         elseif(!(Compare-Object -ReferenceObject @($(Get-Content $LastWrite)) -DifferenceObject @($(Get-Content $SourceFullPath)) ) )
                         {
-                            Throw "Source is a perfect match with the last written file. No actions will be taken."
+                            Throw "E001"
                         }
-
                         Copy-Item -Path $SourceFullPath -Destination $DestinationFullPath
-                        #Write-Log -Message "Successfully copied the file." -Severity Information
+                        Write-FSLog -Message "'$SourceName' was $ChangeType. File was captured to $DestinationFullPath"  -Severity Information 
 
                     }
-                    catch
+                    'Created' 
                     {
-                        #Write-Host "Exception Message: $($_.Exception.Message)" -ForegroundColor Red
+                        Write-FSLog -Message "'$SourceName' was $ChangeType in $Folder." -Severity Information 
                     }
-
+                    'Deleted'
+                    {
+                        Write-FSLog -Message "'$SourceName' was $ChangeType from $Folder." -Severity Information 
+                    }
+                    'Renamed'
+                    {
+                        Write-FSLog -Message "'$SourceOldName' was $ChangeType to $SourceName." -Severity Information 
+                    }
                 }
-                'Created' { }
-                'Deleted' { }
-                'Renamed' { }
             }
-            #Write-Log -Message Hej -Severity Information
-		    New-Object Object |
-                Add-Member -MemberType NoteProperty -Name Time (Get-Date -Format s) -passThru | 
-                Add-Member -MemberType NoteProperty -Name Operation $Event.ChangeType.ToString() -passThru | 
-                Add-Member -MemberType NoteProperty -Name Source $SourceFullPath -passThru |
-              Write-Output
-            
-            #Write-Log -Message "The log file was created at: [$ScriptLogFilePath]" -LogLevel 1
+            catch
+            {
+                if($($_.Exception.Message) -match "E001")
+                {
+                    Write-FSLog -Message "Source is a perfect match with the last written file. No actions will be taken." -Severity Warning
+                }
+                else
+                {
+                    Write-FSLog -Message "$($_.Exception.Message)" -Severity Error
+                }
+            }
 	    }
+        Write-FSLog -Message "Terminated monitoring of folder '$Folder'" -Severity Information
     }
     End
     {
+    $fsw.Dispose()
     }
 }
 
-Watch-fsFolder -Folder C:\watch -Destination "C:\dest"
+Watch-FSFolder
