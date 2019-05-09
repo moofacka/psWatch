@@ -37,13 +37,47 @@
 	You can filter by using powershell pipelining.
 	
 #>
-function watch{
-	param ([string]$location = "",
-		   [switch]$includeSubdirectories = $true,
-		   [switch]$includeChanged = $true,
-		   [switch]$includeRenamed = $true,
-		   [switch]$includeCreated = $true,
-		   [switch]$includeDeleted = $false)
+function Watch-fsFolder
+{
+    [CmdletBinding()]
+    [Alias("Monitor-fsFolder")]
+    Param
+    (
+        [Parameter(Mandatory=$false,
+                   Position=0)]
+        [ValidateScript({  Test-Path -Path $_ -PathType Container  })]
+        [string]$Folder = (Get-Location),
+
+        [Parameter(Mandatory=$false,
+                   Position=1)]
+        [string]$Filter = '*.*',
+
+        [Parameter(Mandatory=$false,
+                   Position=2)]
+        [ValidateScript({  Test-Path -Path $_ -PathType Container  })]
+        [string]$Destination = $env:temp,
+
+        [Parameter(Mandatory=$false,
+                   Position=3)]
+        [switch]$IncludeSubdirectories = $false,
+
+        [Parameter(Mandatory=$false,
+                   Position=4)]
+        [string]$LogFile = "Watch-Folder.log",
+
+        [Parameter(HelpMessage = 'Watch for changes')]
+        [switch]$includeChanged = $true,
+
+        [Parameter(HelpMessage = 'Watch for renames')]
+        [switch]$includeRenamed = $true,
+
+        [Parameter(HelpMessage = 'Watch for new files')]
+        [switch]$includeCreated = $true,
+
+        [Parameter(HelpMessage = 'Watch for delete events')]
+        [switch]$includeDeleted = $false
+
+    )
 		   
 	if($location -eq ""){
 		$location = get-location
