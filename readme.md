@@ -1,40 +1,46 @@
 This powershell cmdlet continuously monitors a directory tree and write to the output the path of the file that has changed.
 
-This allows you to create an script that for instance, run a suite of unit tests when an specific file has changed using powershell pipelining.
+Can run to copy changes to a new location. All events will also be logged.
 
 Installation
 ============
 
-Download the psm1 file in My documents\WindowsPowershell\Modules\pswatch or simply run this one line installation script:
+Clone repository to module folder. 
 
-	iex ((new-object net.webclient).DownloadString("http://bit.ly/Install-PsWatch"))
 
 Usage
 =====
 
-A simple example will be:
+Import module
 
-	Import-Module pswatch
+    Import-Module psWatch
 
-	watch "Myfolder\Other" | %{
-		Write-Host "$_.Path has changed!"
-		RunUnitTests.exe $_.Path
-	}
+	
+Monitors C:\Watch and all it's subfolders for events to
 
-You can filter by using powershell pipelining as follows:
+    Watch-FSFolder -Folder C:\Watch -Filter "*.txt" -includeSubdirectories
 
-	watch | Get-Item | Where-Object { $_.Extension -eq ".js" } | %{
-		do the magic...
-	}
+
+Monitors all events in the current directory and logs to the same directory.
+	
+    Watch-FSFolder -includeDeleted
+
+
+Monitors C:\Watch for events to *.txt files and copies changed files to C:\Destination and logs all to psWatch.log in C:\Destination.
+    Watch-FSFolder -Folder C:\Watch -Filter "*.txt" -Destination C:\Destination -LogFile psWatch.log
+
 
 Options
 =======
 
 The wacth cmdlet has the following parameters:
 
-  * location: the directory to watch. Optional, default to current directory.
-  * includeSubdirectories: default to true.
-  * includeChanged: default to true.
-  * includeRenamed: default to true.
-  * includeCreated: default to true.
-  * includeDeleted: default to false.
+  * Folder: The Folder that you want to monitor. Default is the current working directory.
+  * Filter: What filter to be used for the monitoring. Default is wildcard for everything. Could be specified in string like "important.txt".
+  * Destination: Destination folder for the captured changes. Default is not configured.
+  * LogFile: Log file name for all the output.
+  * includeSubdirectories: Recursively searches subfolders as well. Turned off by default.
+  * includeChanged: Includes change events. Default setting.
+  * includeRenamed: Includes rename events. Default setting.
+  * includeCreated: Includes create events. Default setting.
+  * includeDeleted: Includes delete events. Turned off by default.
