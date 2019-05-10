@@ -58,7 +58,16 @@ function Watch-FSFolder
     (
     [Parameter(Mandatory=$false,
                    Position=0)]
-        [ValidateScript({  Test-Path -Path $_ -PathType Container  })]
+        [ValidateScript({
+            if(!($_ | Test-Path) ){
+                throw "Path does not exist"
+            }
+            if(!(Test-Path -Path $_ -PathType Container))
+            {
+                throw "Argument is a file. Only folders are allowed."
+            }
+            return $true
+              })]
         [string]$Folder = (Get-Location),
 
         [Parameter(Mandatory=$false,
@@ -67,7 +76,16 @@ function Watch-FSFolder
 
         [Parameter(Mandatory=$false,
                    Position=2)]
-        [ValidateScript({  Test-Path -Path $_ -PathType Container  })]
+        [ValidateScript({ 
+            if(!($_ | Test-Path) ){
+                throw "Path does not exist"
+            }
+            if(!(Test-Path -Path $_ -PathType Container))
+            {
+                throw "Argument is a file. Only folders are allowed."
+            }
+            return $true
+              })]
         [string]$Destination,
 
         [Parameter(Mandatory=$false,
