@@ -53,7 +53,7 @@
 function Watch-FSFolder
 {
     [CmdletBinding()]
-    [Alias("Monitor-FSFolder")]
+    [Alias()]
     Param
     (
     [Parameter(Mandatory=$false,
